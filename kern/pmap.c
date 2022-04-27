@@ -85,7 +85,7 @@ static void check_page_installed_pgdir(void);
 // This function may ONLY be used during initialization,
 // before the page_free_list list has been set up.
 static void *
-boot_alloc(uint32_t n)
+boot_alloc(uint32_t n) 
 {
 	static char *nextfree;  // virtual address of next byte of free memory
 	char *result;
@@ -105,6 +105,14 @@ boot_alloc(uint32_t n)
 	// to a multiple of PGSIZE.
 	//
 	// LAB 2: Your code here.
+	int exceeded = npages_basemem - (n + nextfree)/PGSIZE;
+	if (exceeded > 0){
+		result = nextfree;
+		nextfree = ROUNDUP((char *) n + nextfree, PGSIZE);
+		return result;
+	} else{
+		panic("Memoria insuficiente\n");
+	}
 
 	return NULL;
 }
@@ -153,6 +161,10 @@ mem_init(void)
 	// memset
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
+	
+
+	pages = (struct PageInfo *) boot_alloc(npages * sizeof(struct PageInfo *));
+	memset(pages, 0, npages * sizeof(struct PageInfo *));
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -198,6 +210,7 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
+
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
