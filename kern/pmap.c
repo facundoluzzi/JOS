@@ -301,7 +301,7 @@ page_alloc(int alloc_flags)
 	if (return_page == NULL) {
 		return NULL;
 	} else {
-		return_page = (struct PageInfo *) PADDR(boot_alloc(PGSIZE));
+		return_page = (struct PageInfo *) boot_alloc(PGSIZE);
 		memset(return_page, 0, PGSIZE);
 		page_free_list = return_page->pp_link;
 		return_page->pp_link = NULL;
