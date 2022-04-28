@@ -85,7 +85,7 @@ static void check_page_installed_pgdir(void);
 // This function may ONLY be used during initialization,
 // before the page_free_list list has been set up.
 static void *
-boot_alloc(uint32_t n) 
+boot_alloc(uint32_t n)
 {
 	static char *nextfree;  // virtual address of next byte of free memory
 	char *result;
@@ -105,12 +105,12 @@ boot_alloc(uint32_t n)
 	// to a multiple of PGSIZE.
 	//
 	// LAB 2: Your code here.
-	int exceeded = npages_basemem - (n + nextfree)/PGSIZE;
-	if (exceeded > 0){
+	int exceeded = npages_basemem - (n + *nextfree) / PGSIZE;
+	if (exceeded > 0) {
 		result = nextfree;
-		nextfree = ROUNDUP((char *) n + nextfree, PGSIZE);
+		nextfree = ROUNDUP((char *) (n + *nextfree), PGSIZE);
 		return result;
-	} else{
+	} else {
 		panic("Memoria insuficiente\n");
 	}
 
@@ -161,7 +161,7 @@ mem_init(void)
 	// memset
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
-	
+
 
 	pages = (struct PageInfo *) boot_alloc(npages * sizeof(struct PageInfo *));
 	memset(pages, 0, npages * sizeof(struct PageInfo *));
@@ -270,10 +270,15 @@ page_init(void)
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
 	size_t i;
-	for (i = 0; i < npages; i++) {
-		pages[i].pp_ref = 0;
-		pages[i].pp_link = page_free_list;
-		page_free_list = &pages[i];
+	int memory_allocated = PADDR(boot_alloc(0));
+	for (i = 1; i < npages; i++) {
+		int actual_position = i * PGSIZE;
+		if (actual_position < IOPHYSMEM ||
+		    actual_position > (EXTPHYSMEM + memory_allocated)) {
+			pages[i].pp_ref = 0;
+			pages[i].pp_link = page_free_list;
+			page_free_list = &pages[i];
+		}
 	}
 }
 
@@ -292,8 +297,16 @@ page_init(void)
 struct PageInfo *
 page_alloc(int alloc_flags)
 {
-	// Fill this function in
-	return 0;
+	struct PageInfo *return_page = page_free_list;
+	if (return_page == NULL) {
+		return NULL;
+	} else {
+		return_page = (struct PageInfo *) PADDR(boot_alloc(PGSIZE));
+		memset(return_page, 0, PGSIZE);
+		page_free_list = return_page->pp_link;
+		return_page->pp_link = NULL;
+		return return_page;
+	}
 }
 
 //
@@ -304,6 +317,20 @@ void
 page_free(struct PageInfo *pp)
 {
 	// Fill this function in
+	if (pp->pp_link != NULL || pp->pp_ref != 0) {
+		panic("panic on page free");
+	} else {
+		size_t i = pp->pp_ref / PGSIZE;
+
+		pages[i].pp_ref = 0;
+		pages[i].pp_link = page_free_list;
+		page_free_list = &pages[i];
+
+		struct PageInfo *next_link = pages[i - 1].pp_link;
+		pages[i - 1].pp_link = &pages[i];
+		pages[i].pp_link = next_link;
+	}
+
 	// Hint: You may want to panic if pp->pp_ref is nonzero or
 	// pp->pp_link is not NULL.
 }
