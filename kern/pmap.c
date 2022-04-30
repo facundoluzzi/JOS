@@ -364,10 +364,24 @@ page_decref(struct PageInfo *pp)
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
-	// Fill this function in
-	return NULL;
-}
+	pgdir = pgdir + PDX(va);
+	pde_t *pointer_to_pte = KADDR(*pgdir>>12);
+	if (pointer_to_pte == NULL) {
+		if (create) {
+			struct PageInfo *new_page = page_alloc(create);
+			if (!new_page) {
+				return NULL;
+			}
+			new_page->pp_ref ++;
+			pointer_to_pte = page2pa(new_page) | PTE_W | PTE_P | PTE_U;
+		} else {
+			return NULL;
+		}
+	}
+	pte_t *page_table = KADDR(*(pointer_to_pte + PTX(va)) >> 12);
+	return page_table;
 
+}
 //
 // Map [va, va+size) of virtual address space to physical [pa, pa+size)
 // in the page table rooted at pgdir.  Size is a multiple of PGSIZE, and
@@ -430,9 +444,16 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 //
 struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
-{
-	// Fill this function in
-	return NULL;
+{	
+	pte_t *pte = pgdir_walk(pgdir, va, 0);
+	if (!pte) {
+		return NULL;
+	} 
+	if (pte_store) {
+		*pte_store = pte;
+	}
+	
+	return pa2page(PTE_ADDR(*pte));
 }
 
 //
