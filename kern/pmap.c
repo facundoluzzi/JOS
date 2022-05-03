@@ -398,8 +398,22 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 // mapped pages.
 //
 // Hint: the TA solution uses pgdir_walk
-static void boot_map_region_page(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm, bool activate_pte_ps, int page_size);
-static void boot_map_region_page(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm, bool activate_pte_ps, int page_size){
+static void boot_map_region_page(pde_t *pgdir,
+                                 uintptr_t va,
+                                 size_t size,
+                                 physaddr_t pa,
+                                 int perm,
+                                 bool activate_pte_ps,
+                                 int page_size);
+static void
+boot_map_region_page(pde_t *pgdir,
+                     uintptr_t va,
+                     size_t size,
+                     physaddr_t pa,
+                     int perm,
+                     bool activate_pte_ps,
+                     int page_size)
+{
 	int total_pages = size / page_size;
 	pte_t *pte;
 	pde_t *pde;
@@ -407,9 +421,9 @@ static void boot_map_region_page(pde_t *pgdir, uintptr_t va, size_t size, physad
 		if (activate_pte_ps) {
 			pde = pgdir + PDX(va + i);
 			*pde = pa | perm | PTE_P | PTE_PS;
-		} else{
+		} else {
 			pte = pgdir_walk(pgdir, (void *) va, 1);
-			*pte = pa | perm | PTE_P ;
+			*pte = pa | perm | PTE_P;
 		}
 	}
 }
@@ -417,15 +431,15 @@ static void boot_map_region_page(pde_t *pgdir, uintptr_t va, size_t size, physad
 static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
-	#ifndef TP1_PSE
+#ifndef TP1_PSE
+	boot_map_region_page(pgdir, va, size, pa, perm, false, PGSIZE);
+#else
+	if (!((va % LPGSIZE == 0) && (size >= LPGSIZE))) {
 		boot_map_region_page(pgdir, va, size, pa, perm, false, PGSIZE);
-	#else
-		if (!((va % LPGSIZE == 0) && (size >= LPGSIZE))){
-			boot_map_region_page(pgdir, va, size, pa, perm, false, PGSIZE);
-		} else{
-			boot_map_region_page(pgdir, va, size, pa, perm, true, LPGSIZE);
-		}
-	#endif
+	} else {
+		boot_map_region_page(pgdir, va, size, pa, perm, true, LPGSIZE);
+	}
+#endif
 }
 
 //
