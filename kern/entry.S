@@ -58,7 +58,7 @@ entry:
 	movl	$(RELOC(entry_pgdir)), %eax
 	movl	%eax, %cr3
 	
-	#
+	#Enable large page support
 	movl    %cr4, %eax
 	orl    $(CR4_PSE), %eax
 	movl 	%eax, %cr4

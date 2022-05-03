@@ -187,7 +187,11 @@ mem_init(void)
 	//      (ie. perm = PTE_U | PTE_P)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
-	boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U);
+	boot_map_region(kern_pgdir,
+	                UPAGES,
+	                ROUNDUP(npages * sizeof(struct PageInfo), PGSIZE),
+	                PADDR(pages),
+	                PTE_U | PTE_P);
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
 	// stack.  The kernel stack grows down from virtual address KSTACKTOP.
@@ -417,9 +421,9 @@ boot_map_region_page(pde_t *pgdir,
 	int total_pages = size / page_size;
 	pte_t *pte;
 	pde_t *pde;
-	for (int i = 0; i < total_pages; va += page_size, pa += page_size, i++) {
+	for (int i = 0; i <= total_pages; va += page_size, pa += page_size, i++) {
 		if (activate_pte_ps) {
-			pde = pgdir + PDX(va + i);
+			pde = pgdir + PDX(va);
 			*pde = pa | perm | PTE_P | PTE_PS;
 		} else {
 			pte = pgdir_walk(pgdir, (void *) va, 1);
