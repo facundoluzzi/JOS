@@ -398,17 +398,34 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 // mapped pages.
 //
 // Hint: the TA solution uses pgdir_walk
+static void boot_map_region_page(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm, bool activate_pte_ps, int page_size);
+static void boot_map_region_page(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm, bool activate_pte_ps, int page_size){
+	int total_pages = size / page_size;
+	pte_t *pte;
+	pde_t *pde;
+	for (int i = 0; i < total_pages; va += page_size, pa += page_size, i++) {
+		if (activate_pte_ps) {
+			pde = pgdir + PDX(va + i);
+			*pde = pa | perm | PTE_P | PTE_PS;
+		} else{
+			pte = pgdir_walk(pgdir, (void *) va, 1);
+			*pte = pa | perm | PTE_P ;
+		}
+	}
+}
+
 static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
-	int total_pages = size / PGSIZE;
-	pte_t *pte;
-	for (int i = 0; i < total_pages; va += PGSIZE, pa += PGSIZE, i++) {
-		pte = pgdir_walk(pgdir, (void *) va, 1);
-		*pte = pa | perm | PTE_P;
-	}
-
-	// Fill this function in
+	#ifndef TP1_PSE
+		boot_map_region_page(pgdir, va, size, pa, perm, false, PGSIZE);
+	#else
+		if (!((va % LPGSIZE == 0) && (size >= LPGSIZE))){
+			boot_map_region_page(pgdir, va, size, pa, perm, false, PGSIZE);
+		} else{
+			boot_map_region_page(pgdir, va, size, pa, perm, true, LPGSIZE);
+		}
+	#endif
 }
 
 //
