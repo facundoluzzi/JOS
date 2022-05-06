@@ -81,6 +81,12 @@ map_region_large
 ----------------
 
 1) 
+Primero queremos aclarar que para mapear 4MiB de memoria fisica sin large pages, necesitariamos un directory y una table de 1024 x 4bytes = 4 KiB.
+
+Con large pages, la page table pasa a ser innecesaria, por lo que ahorrariamos por cada large pages que usemos 1024 x 4bytes = 4096 bytes = 4KiB.
+
+Procedemos a calcular la cantidad de paginas por cada llamada a boot_map_region(), la unica funcion que usa `large_pages`.
+
 ------
 La siguiente llamada de boot_map_region() no tiene la physical address alineada:
 
@@ -95,7 +101,7 @@ Corrimos qemu printeando las direcciones de UPAGES y PADDR(pages). Consideramos 
 ```
 UPAGES: 4009754624 , PADDR = 1286144
 ```
-Se ve claramente que PADDR(pages) no es multiplo de 4MiB y por lo tanto no esta alineado.
+Se ve claramente que PADDR(pages) no es multiplo de 4MiB (1024 * 1024 * 4 = 4194304 > 1286144) y por lo tanto no esta alineado.
 
 ------------
 
@@ -122,11 +128,11 @@ print(c / 4194304) //
 
 => ~64
 ```
-En total se utilizaron 64 large pages, ahorrando de esta manera 64 * 4KiB = 256 KiB.
+CONCLUSION: En total se utilizaron 64 large pages, ahorrando de esta manera 64 * 4KiB = 256 KiB.
 
 2.
 Adjuntamos parte del enunciado:
 ```
 El arreglo se crea en tiempo de ejecución porque el número de páginas no es una constante sino que depende de la cantidad real de memoria de la máquina donde corre JOS.
 ```
-Esto refiere a el vector de pages y aclara que depende de la memoria de la maquina en la que corre. Por lo tanto, la cantidad de pages y/o su posicion puedan quedar alineadas y mapearse con paginas largas. Las otras dos llamadas son con posiciones fisicas y virtuales constantes, asi como el size tambien constante.
+Esto refiere a el arreglo de pages y aclara que depende de la memoria de la maquina en la que corre. Por lo tanto, la cantidad de pages y/o su posicion puedan quedar alineadas y mapearse con paginas largas. Las otras dos llamadas son con posiciones fisicas y virtuales constantes, asi como el size tambien constante.
