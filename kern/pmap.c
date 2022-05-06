@@ -439,7 +439,7 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 #ifndef TP1_PSE
 	boot_map_region_page(pgdir, va, size, pa, perm, false, PGSIZE);
 #else
-	if (!((va % LPGSIZE == 0) && (size >= LPGSIZE))) {
+	if (!((va % LPGSIZE == 0 ) && (size >= LPGSIZE) && (pa % LPGSIZE == 0))) {
 		boot_map_region_page(pgdir, va, size, pa, perm, false, PGSIZE);
 	} else {
 		boot_map_region_page(pgdir, va, size, pa, perm, true, LPGSIZE);

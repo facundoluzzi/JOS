@@ -4,7 +4,8 @@ TP1: Memoria virtual en JOS
 boot_alloc_pos
 --------------
 
-1) Buscamos el final del kernel:
+1) 
+Buscamos el final del kernel:
 ```
 (base) ➜  sisop_2022a_g04_argel_luzzi git:(entrega_tp1) nm obj/kern/kernel | grep end 
 f0118970 B end
@@ -79,4 +80,53 @@ Podemos observar que end comienza en 0xf0118970, le asigna a nextfree el valor 0
 map_region_large
 ----------------
 
+1) 
+------
+La siguiente llamada de boot_map_region() no tiene la physical address alineada:
 
+```
+boot_map_region(kern_pgdir,
+	            UPAGES,
+	            ROUNDUP(npages * sizeof(struct PageInfo), PGSIZE),
+	            PADDR(pages),
+	            PTE_U | PTE_P);
+```
+Corrimos qemu printeando las direcciones de UPAGES y PADDR(pages). Consideramos que no hay forma teorica de encontrar las posiciones tanto fisica como virtual porque son resultado de una operacion que depende de la memoria:
+```
+UPAGES: 4009754624 , PADDR = 1286144
+```
+Se ve claramente que PADDR(pages) no es multiplo de 4MiB y por lo tanto no esta alineado.
+
+------------
+
+La siguiente llamada de boot_map_region() es menor a 4MiB => no asigna large page:
+
+```
+boot_map_region(kern_pgdir,
+	                KSTACKTOP - KSTKSIZE,
+	                KSTKSIZE,
+	                PADDR(bootstack),
+	                PTE_W);
+```
+------
+La siguiente llamada de boot_map_region() llama y hace esta cuenta.
+```
+boot_map_region(kern_pgdir, KERNBASE, (0xFFFFFFFF - KERNBASE), 0, PTE_W);
+
+```
+```
+a = 4294967295 // 0xFFFFFFFF
+b = 4026531840 // 0xF0000000 
+c = (a - b)
+print(c / 4194304) //
+
+=> ~64
+```
+En total se utilizaron 64 large pages, ahorrando de esta manera 64 * 4KiB = 256 KiB.
+
+2.
+Adjuntamos parte del enunciado:
+```
+El arreglo se crea en tiempo de ejecución porque el número de páginas no es una constante sino que depende de la cantidad real de memoria de la máquina donde corre JOS.
+```
+Esto refiere a el vector de pages y aclara que depende de la memoria de la maquina en la que corre. Por lo tanto, la cantidad de pages y/o su posicion puedan quedar alineadas y mapearse con paginas largas. Las otras dos llamadas son con posiciones fisicas y virtuales constantes, asi como el size tambien constante.
