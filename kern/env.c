@@ -116,7 +116,6 @@ env_init(void)
 	size_t i;
 
 	for (i = 0; i < NENV; i++) {
-		int actual_position = i * PGSIZE;
 		envs[i].env_id = 0;
 		envs[i].env_link = &envs[i+1];
 		envs[i].env_status = ENV_FREE;
@@ -222,7 +221,6 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	if (generation <= 0)  // Don't create a negative env_id.
 		generation = 1 << ENVGENSHIFT;
 	e->env_id = generation | (e - envs);
-
 	// Set the basic status variables.
 	e->env_parent_id = parent_id;
 	e->env_type = ENV_TYPE_USER;
@@ -271,6 +269,24 @@ region_alloc(struct Env *e, void *va, size_t len)
 	// LAB 3: Your code here.
 	// (But only if you need it for load_icode.)
 	//
+	if (len == 0){
+		return;
+	}
+	void *initial_va = ROUNDDOWN(va, PGSIZE);
+	void *final_va = ROUNDUP((size_t) va + len, PGSIZE);
+
+	int cant_pages = (final_va - initial_va) / PGSIZE;
+
+
+	for (int i = 0; i < cant_pages; i++){
+		struct PageInfo *pp = page_alloc(0);
+		if (!pp){
+			panic("error in region alloc: out of memory");
+		}
+		if (page_insert(e->env_pgdir, pp, initial_va + (PGSIZE * i), PTE_W | PTE_U) < 0){
+			panic("error in region alloc: insert page failed");
+		}
+	}
 	// Hint: It is easier to use region_alloc if the caller can pass
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
@@ -331,11 +347,43 @@ load_icode(struct Env *e, uint8_t *binary)
 	//  What?  (See env_run() and env_pop_tf() below.)
 
 	// LAB 3: Your code here.
+	struct Elf *elf = (struct Elf *) binary;
+	if (elf->e_magic != ELF_MAGIC){
+		panic("error in load_icode: invalid ELF");
+	}
+	
+	lcr3(PADDR(e->env_pgdir));
+
+	struct Proghdr *ph, *eph;
+	ph = (struct Proghdr *) ((uint8_t *) binary + elf->e_phoff);
+	eph = ph + elf->e_phnum;
+	for (; ph < eph; ph++){
+		if (ph->p_type != ELF_PROG_LOAD){
+			continue;
+		}
+		uint32_t segment_va = ph->p_va;
+		uint32_t segment_size = ph->p_memsz;
+		uint32_t segment_files = ph->p_filesz;
+		uint32_t start_filesz = binary + ph->p_offset;
+		region_alloc(e, segment_va, segment_size);
+		memset(segment_va, 0, segment_size);
+		memcpy(segment_va, start_filesz, segment_files);
+	}
+	e->env_tf.tf_eip = elf->e_entry;
 
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 
 	// LAB 3: Your code here.
+	struct PageInfo *pp = page_alloc(0);
+	if (!pp){
+		panic("error in load icode: out of memory at trying to insert one page");
+	}
+	if (page_insert(e->env_pgdir, pp, (USTACKTOP - PGSIZE), PTE_W | PTE_U) < 0){
+		panic("error in load icode: insert page failed");
+	}
+
+	lcr3(PADDR(kern_pgdir));
 }
 
 //
