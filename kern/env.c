@@ -117,11 +117,11 @@ env_init(void)
 
 	for (i = 0; i < NENV; i++) {
 		envs[i].env_id = 0;
-		envs[i].env_link = &envs[i+1];
+		envs[i].env_link = &envs[i + 1];
 		envs[i].env_status = ENV_FREE;
 	}
 	env_free_list = &envs[0];
-	envs[NENV-1].env_link = NULL;
+	envs[NENV - 1].env_link = NULL;
 	// Per-CPU part of the initialization
 	env_init_percpu();
 }
@@ -269,7 +269,7 @@ region_alloc(struct Env *e, void *va, size_t len)
 	// LAB 3: Your code here.
 	// (But only if you need it for load_icode.)
 	//
-	if (len == 0){
+	if (len == 0) {
 		return;
 	}
 	void *initial_va = ROUNDDOWN(va, PGSIZE);
@@ -278,12 +278,15 @@ region_alloc(struct Env *e, void *va, size_t len)
 	int cant_pages = (final_va - initial_va) / PGSIZE;
 
 
-	for (int i = 0; i < cant_pages; i++){
+	for (int i = 0; i < cant_pages; i++) {
 		struct PageInfo *pp = page_alloc(0);
-		if (!pp){
+		if (!pp) {
 			panic("error in region alloc: out of memory");
 		}
-		if (page_insert(e->env_pgdir, pp, initial_va + (PGSIZE * i), PTE_W | PTE_U) < 0){
+		if (page_insert(e->env_pgdir,
+		                pp,
+		                initial_va + (PGSIZE * i),
+		                PTE_W | PTE_U) < 0) {
 			panic("error in region alloc: insert page failed");
 		}
 	}
@@ -348,17 +351,17 @@ load_icode(struct Env *e, uint8_t *binary)
 
 	// LAB 3: Your code here.
 	struct Elf *elf = (struct Elf *) binary;
-	if (elf->e_magic != ELF_MAGIC){
+	if (elf->e_magic != ELF_MAGIC) {
 		panic("error in load_icode: invalid ELF");
 	}
-	
+
 	lcr3(PADDR(e->env_pgdir));
 
 	struct Proghdr *ph, *eph;
 	ph = (struct Proghdr *) ((uint8_t *) binary + elf->e_phoff);
 	eph = ph + elf->e_phnum;
-	for (; ph < eph; ph++){
-		if (ph->p_type != ELF_PROG_LOAD){
+	for (; ph < eph; ph++) {
+		if (ph->p_type != ELF_PROG_LOAD) {
 			continue;
 		}
 		uint32_t segment_va = ph->p_va;
@@ -376,10 +379,12 @@ load_icode(struct Env *e, uint8_t *binary)
 
 	// LAB 3: Your code here.
 	struct PageInfo *pp = page_alloc(0);
-	if (!pp){
-		panic("error in load icode: out of memory at trying to insert one page");
+	if (!pp) {
+		panic("error in load icode: out of memory at trying to insert "
+		      "one page");
 	}
-	if (page_insert(e->env_pgdir, pp, (USTACKTOP - PGSIZE), PTE_W | PTE_U) < 0){
+	if (page_insert(e->env_pgdir, pp, (USTACKTOP - PGSIZE), PTE_W | PTE_U) <
+	    0) {
 		panic("error in load icode: insert page failed");
 	}
 
