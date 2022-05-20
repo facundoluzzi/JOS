@@ -273,7 +273,7 @@ region_alloc(struct Env *e, void *va, size_t len)
 		return;
 	}
 	void *initial_va = ROUNDDOWN(va, PGSIZE);
-	void *final_va = ROUNDUP((size_t) va + len, PGSIZE);
+	void *final_va = ROUNDUP(va + len, PGSIZE);
 
 	int cant_pages = (final_va - initial_va) / PGSIZE;
 
@@ -364,13 +364,10 @@ load_icode(struct Env *e, uint8_t *binary)
 		if (ph->p_type != ELF_PROG_LOAD) {
 			continue;
 		}
-		uint32_t segment_va = ph->p_va;
-		uint32_t segment_size = ph->p_memsz;
-		uint32_t segment_files = ph->p_filesz;
-		uint32_t start_filesz = binary + ph->p_offset;
-		region_alloc(e, segment_va, segment_size);
-		memset(segment_va, 0, segment_size);
-		memcpy(segment_va, start_filesz, segment_files);
+		void *p_va = (void *) ph->p_va;
+		region_alloc(e, p_va, ph->p_memsz);
+		memset(p_va, 0, ph->p_memsz);
+		memcpy(p_va, binary + ph->p_offset, ph->p_filesz);
 	}
 	e->env_tf.tf_eip = elf->e_entry;
 
@@ -383,8 +380,13 @@ load_icode(struct Env *e, uint8_t *binary)
 		panic("error in load icode: out of memory at trying to insert "
 		      "one page");
 	}
+<<<<<<< HEAD
 	if (page_insert(e->env_pgdir, pp, (USTACKTOP - PGSIZE), PTE_W | PTE_U) <
 	    0) {
+=======
+	void *va = (void *) (USTACKTOP - PGSIZE);
+	if (page_insert(e->env_pgdir, pp, va, PTE_W | PTE_U) < 0) {
+>>>>>>> 3b734d20aeaaf4fde5a4f60455d02e8f71dbe049
 		panic("error in load icode: insert page failed");
 	}
 
@@ -402,6 +404,12 @@ void
 env_create(uint8_t *binary, enum EnvType type)
 {
 	// LAB 3: Your code here.
+	struct Env *e;
+	int err = env_alloc(&e, 0);
+	if (err < 0)
+		panic("env_create: %e", err);
+	load_icode(e, binary);
+	e->env_type = type;
 }
 
 //
@@ -518,6 +526,14 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Your code here.
+	if (curenv && curenv->env_status == ENV_RUNNING) {
+		curenv->env_status = ENV_RUNNABLE;
+	}
+	curenv = e;
+	curenv->env_status = ENV_RUNNING;
+	curenv->env_runs++;
 
-	panic("env_run not yet implemented");
+	lcr3(PADDR(e->env_pgdir));
+
+	env_pop_tf(&e->env_tf);
 }
