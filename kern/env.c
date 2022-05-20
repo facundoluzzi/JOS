@@ -380,13 +380,8 @@ load_icode(struct Env *e, uint8_t *binary)
 		panic("error in load icode: out of memory at trying to insert "
 		      "one page");
 	}
-<<<<<<< HEAD
-	if (page_insert(e->env_pgdir, pp, (USTACKTOP - PGSIZE), PTE_W | PTE_U) <
-	    0) {
-=======
 	void *va = (void *) (USTACKTOP - PGSIZE);
 	if (page_insert(e->env_pgdir, pp, va, PTE_W | PTE_U) < 0) {
->>>>>>> 3b734d20aeaaf4fde5a4f60455d02e8f71dbe049
 		panic("error in load icode: insert page failed");
 	}
 
