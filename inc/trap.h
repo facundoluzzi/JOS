@@ -1,6 +1,9 @@
 #ifndef JOS_INC_TRAP_H
 #define JOS_INC_TRAP_H
 
+#define KERNEL 		 0
+#define USER 		 3
+
 // Trap numbers
 // These are processor defined:
 #define T_DIVIDE     0		// divide error

@@ -124,21 +124,28 @@ Mostrar una última vez la salida de info registers en QEMU, y explicar los camb
 
 ```
 EAX=00000000 EBX=00000000 ECX=00000000 EDX=00000000
-ESI=00000000 EDI=00000000 EBP=00000000 ESP=eebfe000
-EIP=00800020 EFL=00000002 [-------] CPL=3 II=0 A20=1 SMM=0 HLT=0
-ES =0023 00000000 ffffffff 00cff300 DPL=3 DS   [-WA]
-CS =001b 00000000 ffffffff 00cffa00 DPL=3 CS32 [-R-]
 ```
 10.Poner un breakpoint temporal (tbreak, se aplica una sola vez) en la funcion syscall() y explicar que ocurre justo tras ejecutar la instruccion int x30. Usar, de ser necesario, el monitor de QEMU.
 
 ```
 The target architecture is assumed to be i8086
 [f000:e05b]    0xfe05b: cmpw   $0xffc8,%cs:(%esi)
-0x0000e05b in ?? ()
+0x0000e05b in ?? ()ESI=00000000 EDI=00000000 EBP=00000000 ESP=eebfe000
+EIP=00800020 EFL=00000002 [-------] CPL=3 II=0 A20=1 SMM=0 HLT=0
+ES =0023 00000000 ffffffff 00cff300 DPL=3 DS   [-WA]
+CS =001b 00000000 ffffffff 00cffa00 DPL=3 CS32 [-R-]
+
 ```
 
 kern_idt
 --------
+La interrupción que trata de generar user/softint.c es un page fault. La interrupción que se genera es 
+```
+trap 0x0000000d General Protection
+```
+En user/softint.c estamos intentando lanzar una interrupción de tipo page fault, en un proceso con nivel de privilegio 3 (user mode), y como la interrupcion requiere un nivel de privilegio 0 para poder ser lanzada, el sistema se protege lanzando la interrupción general protection. 
+
+Podriamos habilitar los permisos necesarios para que el nivel de privilegio 3 pueda lanzar la interrupción page fault
 
 ...
 

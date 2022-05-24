@@ -64,7 +64,46 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
+	extern void trap_0();
+	void t_divide();
+	void t_debug();
+	void t_nmi();
+	void t_brkpt();
+	void t_oflow();
+	void t_bound();
+	void t_illop();
+	void t_device();
+	void t_dblflt();
+	void t_tss();
+	void t_segnp();
+	void t_stack();
+	void t_gpflt();
+	void t_pgflt();
+	void t_fperr();
+	void t_align();
+	void t_mchk();
+	void t_simderr();
+	void t_syscall();
 
+	SETGATE(idt[T_DIVIDE], false, GD_KT, t_divide, KERNEL);
+	SETGATE(idt[T_DEBUG], false, GD_KT, t_debug, KERNEL);
+	SETGATE(idt[T_NMI], false, GD_KT, t_nmi, KERNEL);
+	SETGATE(idt[T_BRKPT], false, GD_KT, t_brkpt, USER);
+	SETGATE(idt[T_OFLOW], false, GD_KT, t_oflow, KERNEL);
+	SETGATE(idt[T_BOUND], false, GD_KT, t_bound, KERNEL);
+	SETGATE(idt[T_ILLOP], false, GD_KT, t_illop, KERNEL);
+	SETGATE(idt[T_DEVICE], false, GD_KT, t_device, KERNEL);
+	SETGATE(idt[T_DBLFLT], false, GD_KT, t_dblflt, KERNEL);
+	SETGATE(idt[T_TSS], false, GD_KT, t_tss, KERNEL);
+	SETGATE(idt[T_SEGNP], false, GD_KT, t_segnp, KERNEL);
+	SETGATE(idt[T_STACK], false, GD_KT, t_stack, KERNEL);
+	SETGATE(idt[T_GPFLT], false, GD_KT, t_gpflt, KERNEL);
+	SETGATE(idt[T_PGFLT], false, GD_KT, t_pgflt, KERNEL);
+	SETGATE(idt[T_FPERR], false, GD_KT, t_fperr, KERNEL);
+	SETGATE(idt[T_ALIGN], false, GD_KT, t_align, KERNEL);
+	SETGATE(idt[T_MCHK], false, GD_KT, t_mchk, KERNEL);
+	SETGATE(idt[T_SIMDERR], false, GD_KT, t_simderr, KERNEL);
+	SETGATE(idt[T_SYSCALL], false, GD_KT, t_syscall, USER);
 	// Per-CPU setup
 	trap_init_percpu();
 }
