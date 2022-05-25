@@ -183,6 +183,27 @@ trap_dispatch(struct Trapframe *tf)
 	// LAB 3: Your code here.
 
 	// Unexpected trap: The user process or the kernel has a bug.
+
+	switch (tf->tf_trapno) {
+	case T_BRKPT:
+		monitor(tf);
+		return;
+	case T_PGFLT:
+		page_fault_handler(tf);
+		return;
+	case T_SYSCALL: {
+		struct PushRegs *regs = &tf->tf_regs;
+		tf->tf_regs.reg_eax = syscall(regs->reg_eax,
+		                              regs->reg_edx,
+		                              regs->reg_ecx,
+		                              regs->reg_ebx,
+		                              regs->reg_edi,
+		                              regs->reg_esi);
+		return;
+	}
+	default:
+		break;
+	}
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
 		panic("unhandled trap in kernel");

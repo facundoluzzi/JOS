@@ -74,9 +74,9 @@ TRAPHANDLER_NOEC(t_syscall, T_SYSCALL);
 _alltraps:
  	pushl %ds
     pushl %es
+	pushal
 	mov $GD_KD, %ax
     movw %ax, %ds
     movw %ax, %es
-	pushal
 	pushl %esp
 	call trap
