@@ -147,11 +147,67 @@ En user/softint.c estamos intentando lanzar una interrupción de tipo page fault
 
 Podriamos habilitar los permisos necesarios para que el nivel de privilegio 3 pueda lanzar la interrupción page fault
 
-...
 
 
 user_evilhello
 --------------
 
-...
 
+-¿En qué se diferencia el código de la versión en evilhello.c mostrada arriba?
+
+El modificado desrreferencia el puntero al inicio del kernel en el lado del usuario. 
+
+El original manda la syscall para que se desrreferencie dentro, entonces el kernel lo hace.
+
+-¿En qué cambia el comportamiento durante la ejecución?
+¿Por qué? ¿Cuál es el mecanismo?
+
+
+Original
+```
+[00000000] new env 00001000
+Incoming TRAP frame at 0xefffffbc
+f�rIncoming TRAP frame at 0xefffffbc
+[00001000] exiting gracefully
+[00001000] free env 00001000
+Destroyed the only environment - nothing more to do!
+```
+Modificado
+```[00000000] new env 00001000
+Incoming TRAP frame at 0xefffffbc
+[00001000] user fault va f010000c ip 0080003d
+TRAP frame at 0xf01e0000
+  edi  0x00000000
+  esi  0x00000000
+  ebp  0xeebfdfd0
+  oesp 0xefffffdc
+  ebx  0x00000000
+  edx  0x00000000
+  ecx  0x00000000
+  eax  0x00000000
+  es   0x----0023
+  ds   0x----0023
+  trap 0x0000000e Page Fault
+  cr2  0xf010000c
+  err  0x00000005 [user, read, protection]
+  eip  0x0080003d
+  cs   0x----001b
+  flag 0x00000082
+  esp  0xeebfdfb0
+  ss   0x----0023
+[00001000] free env 00001000
+Destroyed the only environment - nothing more to do!
+```
+Se ve claramente que el caso modificado tira Page Fault mientras que el otro pasa de largo. Pasa de largo (original) porque la parte de acceder a la memoria se la deja al kernel, y este con sus permisos y sin una barrera logica que lo evite, la accede sin problemas. En el otro caso (modificado) al querer acceder a memoria en `char first = *entry;` desde el lado de usuario, tira page fault.
+
+-Listar las direcciones de memoria que se acceden en ambos casos, y en qué ring se realizan. ¿Es esto un problema? ¿Por qué?
+
+Caso original:
+    
+-Se accede al comienzo del kernel dentro de la syscall cputs, o sea que lo hace el kernel. Esto se hace en ring 0.
+
+Esta tiene el problema de que no verifica la que l
+
+Caso modificado:
+
+-Se accede al comienzo del kernel en `char first = *entry;`, lo hace el usuario. Se hace en ring 1, y tira page fault.
