@@ -27,13 +27,25 @@ En hexadecimal los procesos toman los ID: 0x1000, 0x1001, 0x1002, 0x1003, 0x1004
 
 2-Supongamos que al arrancar el kernel se lanzan NENV procesos a ejecución. A continuación, se destruye el proceso asociado a envs[630] y se lanza un proceso que cada segundo, muere y se vuelve a lanzar (se destruye, y se vuelve a crear). ¿Qué identificadores tendrán esos procesos en las primeras cinco ejecuciones?
 
-En principio tenemos como vimos en la respuesta anterior el ID 0x1000 asociado al proceso n°0. Entonces, si actualmente tenemos 630 procesos, le sumamos 630 que en hexadecimal es 0x0276, y nos queda como resultado para el primer proceso 0x1276. 
-A partir de eso, tomamos el valor inicial de generation como 0x1276, entonces al realizar las siguientes operaciones
-generation = (e->env_id + (1 << ENVGENSHIFT)) & ~(NENV - 1);
 
-e->env_id es igual a 0x1276 en el primer proceso, luego se le suma 0x1000, y se aplica el operador & con 0x0400, dando como resultado 
+Aplicando lo del ejercicio anterior, se toma el 0 como ID base, y el nuevo generation sera la suma entre este id, 0x1000 (1 << ENVGENSHIFT) y a eso aplicar el operador & con ~(NENV - 1). A eso se le debe sumar el offset 0x0276 (630 en hexa, ya que tenemos 630 procesos), resultando entonces los siguientes ID's:
 
-e->env_id = generation | (e - envs);
+La operación es la siguiente: (e->env_id + (1 << ENVGENSHIFT)) & ~(NENV - 1) + 0x0276
+
+Arrancamos con e->env_id igual a 0:
+
+Los primeros 5 procesos tendran el ID:
+
+1er proceso: (0x0000 + (0x1000) & ~(0x03FF) + 0x0276 = 0x1276
+
+2do proceso: (0x1276 + (0x1000) & ~(0x03FF) + 0x0276 = 0x2276
+
+3er proceso: (0x2276 + (0x1000) & ~(0x03FF) + 0x0276 = 0x3276
+
+4to proceso: (0x3276 + (0x1000) & ~(0x03FF) + 0x0276 = 0x4276
+
+5to proceso: (0x4276 + (0x1000) & ~(0x03FF) + 0x0276 = 0x5276
+
 
 env_pop_tf
 ----------
@@ -51,11 +63,20 @@ env_pop_tf
 
 ¿Cómo determina la CPU (en x86) si hay un cambio de ring (nivel de privilegio)? Ayuda: Responder antes en qué lugar exacto guarda x86 el nivel de privilegio actual. ¿Cuántos bits almacenan ese privilegio?
 
-El lugar exacto en que x86 guarda el nivel de privilegio actual es en %cs. Cuando los dos primeros bits del cs del stack (que vienen con tf) son 3 (11), iret hace un cambio de ring a privilegios de usuario. 
+El lugar exacto en que x86 guarda el nivel de privilegio actual es en %cs. Cuando los dos primeros bits del cs del stack (que vienen con tf) son 3 (11), iret hace un cambio de ring a privilegios de usuario. Adjuntamos el codigo assembler.
+
+```PROTECTED-MODE-RETURN: (* PE = 1 *)
+IF CS(RPL) > CPL
+THEN GOTO RETURN-TO-OUTER-PRIVILEGE-LEVEL;
+ELSE GOTO RETURN-TO-SAME-PRIVILEGE-LEVEL; 
+FI;
+END;
+```
 
 
 gdb_hello
 ---------
+1.Poner un breakpoint en env_pop_tf() y continuar la ejecución hasta allí.
 
 2.En QEMU, entrar en modo monitor (Ctrl-a c), y mostrar las cinco primeras líneas del comando info registers.
 ```
@@ -70,7 +91,7 @@ CS =0008 00000000 ffffffff 00cf9a00 DPL=0 CS32 [-R-]
 ```
 $1 = (struct Trapframe *) 0xf01e0000
 ```
-4.Imprimir, con x/Nx tf tantos enteros como haya en el struct Trapframe donde N = sizeof(Trapframe) / sizeof(int).
+4.Imprimir, con x/Nx tf tantos enteros como haya en el struct Trapframe donde N = sizeof(Trapframe) / sizeof(int) = 17.
 ```
 0xf01e0000:	0x00000000	0x00000000	0x00000000	0x00000000
 0xf01e0010:	0x00000000	0x00000000	0x00000000	0x00000000
@@ -78,20 +99,54 @@ $1 = (struct Trapframe *) 0xf01e0000
 0xf01e0030:	0x00800020	0x0000001b	0x00000000	0xeebfe000
 0xf01e0040:	0x00000023
 ```
-6.Comprobar, con x/Nx  que los contenidos son los mismos que tf (donde N es el tamaÃ±o de tf).
 
-Son los mismos.
+5.Avanzar hasta justo después del movl ...,%esp, usando si M para ejecutar tantas instrucciones como sea necesario en un solo paso.
+
+6.Comprobar, con x/Nx %sp que los contenidos son los mismos que tf (donde N es el tamano de tf).
+Lo mismo quedo.
+
 ```
-0xf01e0000:     0x00000000      0x00000000      0x00000000      0x00000000
-0xf01e0010:     0x00000000      0x00000000      0x00000000      0x00000000
-0xf01e0020:     0x00000023      0x00000023      0x00000000      0x00000000
-0xf01e0030:     0x00800020      0x0000001b      0x00000000      0xeebfe000
-0xf01e0040:     0x00000023
+0xf01e0000:	0x00000000	0x00000000	0x00000000	0x00000000
+0xf01e0010:	0x00000000	0x00000000	0x00000000	0x00000000
+0xf01e0020:	0x00000023	0x00000023	0x00000000	0x00000000
+0xf01e0030:	0x00800020	0x0000001b	0x00000000	0xeebfe000
+0xf01e0040:	0x00000023
+
 ```
 
-7.
+7.Describir cada uno de los valores. Para los valores no nulos, se debe indicar dónde se configuró inicialmente el valor, y qué representa.
 
-8.
+Los primeros 8 numeros son los registros de uso general.Luego:
+
+El tf_es (selector de segmento para segmentos de datos) 0x0000023
+
+El tf_ds (descriptor de segmentos para segmento de datos) 0x00000023.
+
+El tf_trapno (numero de trap), el 0x00000000.
+
+El tf_err (codigo error), el  0x00000000.
+
+El tf_eip (env instruction pointer), el 0x00800020.
+
+El tf_cs (codigo segmento), el 0x0000001b.
+
+El tf_eflags (flags), el 0x00000000.
+
+El tf_esp (stack pointer), el 0xeebfe000.
+
+El ultimo es le tf_ss (segmento de pila), el 0x00000023.
+
+Las definiciones de los no nulos se dan en env_alloc(). Adjuntamos parte del codigo.
+
+```
+	e->env_tf.tf_ds = GD_UD | 3;
+	e->env_tf.tf_es = GD_UD | 3;
+	e->env_tf.tf_ss = GD_UD | 3;
+	e->env_tf.tf_esp = USTACKTOP;
+	e->env_tf.tf_cs = GD_UT | 3;
+```
+
+8.Continuar hasta la instrucción iret, sin llegar a ejecutarla. Mostrar en este punto, de nuevo, las cinco primeras líneas de info registers en el monitor de QEMU. Explicar los cambios producidos.
 ```
 EAX=00000000 EBX=00000000 ECX=00000000 EDX=00000000
 ESI=00000000 EDI=00000000 EBP=00000000 ESP=f01e0030
@@ -99,10 +154,9 @@ EIP=f0102fb3 EFL=00000096 [--S-AP-] CPL=0 II=0 A20=1 SMM=0 HLT=0
 ES =0023 00000000 ffffffff 00cff300 DPL=3 DS   [-WA]
 CS =0008 00000000 ffffffff 00cf9a00 DPL=0 CS32 [-R-]
 ```
+Se limpian los registros de uso general, se produce el cambio de contexto, saltando el ESP y pasando el DPL a 3.
 
-9.
-
-Ejecutar la instrucción iret. En ese momento se ha realizado el cambio de contexto y los símbolos del kernel ya no son válidos.
+9.Ejecutar la instrucción iret. En ese momento se ha realizado el cambio de contexto y los símbolos del kernel ya no son válidos.
 
 imprimir el valor del contador de programa con p $pc o p $eip
 
@@ -124,6 +178,10 @@ Mostrar una última vez la salida de info registers en QEMU, y explicar los camb
 
 ```
 EAX=00000000 EBX=00000000 ECX=00000000 EDX=00000000
+ESI=00000000 EDI=00000000 EBP=00000000 ESP=eebfe000
+EIP=00800020 EFL=00000002 [-------] CPL=3 II=0 A20=1 SMM=0 HLT=0
+ES =0023 00000000 ffffffff 00cff300 DPL=3 DS   [-WA]
+CS =001b 00000000 ffffffff 00cffa00 DPL=3 CS32 [-R-]
 ```
 10.Poner un breakpoint temporal (tbreak, se aplica una sola vez) en la funcion syscall() y explicar que ocurre justo tras ejecutar la instruccion int x30. Usar, de ser necesario, el monitor de QEMU.
 
@@ -134,7 +192,6 @@ The target architecture is assumed to be i8086
 EIP=00800020 EFL=00000002 [-------] CPL=3 II=0 A20=1 SMM=0 HLT=0
 ES =0023 00000000 ffffffff 00cff300 DPL=3 DS   [-WA]
 CS =001b 00000000 ffffffff 00cffa00 DPL=3 CS32 [-R-]
-
 ```
 
 kern_idt
@@ -145,7 +202,7 @@ trap 0x0000000d General Protection
 ```
 En user/softint.c estamos intentando lanzar una interrupción de tipo page fault, en un proceso con nivel de privilegio 3 (user mode), y como la interrupcion requiere un nivel de privilegio 0 para poder ser lanzada, el sistema se protege lanzando la interrupción general protection. 
 
-Podriamos habilitar los permisos necesarios para que el nivel de privilegio 3 pueda lanzar la interrupción page fault
+Podriamos habilitar los permisos necesarios para que el nivel de privilegio 3 pueda lanzar la interrupción page fault.
 
 
 
@@ -206,7 +263,7 @@ Caso original:
     
 -Se accede al comienzo del kernel dentro de la syscall cputs, o sea que lo hace el kernel. Esto se hace en ring 0.
 
-Esta tiene el problema de que no verifica la que l
+Esta tiene el problema de que no verifica la que la memoria.
 
 Caso modificado:
 
