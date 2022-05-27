@@ -63,7 +63,7 @@ env_pop_tf
 
 ¿Cómo determina la CPU (en x86) si hay un cambio de ring (nivel de privilegio)? Ayuda: Responder antes en qué lugar exacto guarda x86 el nivel de privilegio actual. ¿Cuántos bits almacenan ese privilegio?
 
-El lugar exacto en que x86 guarda el nivel de privilegio actual es en %cs. Cuando los dos primeros bits del cs del stack (que vienen con tf) son 3 (11), iret hace un cambio de ring a privilegios de usuario. Adjuntamos el codigo assembler.
+El lugar exacto en que x86 guarda el nivel de privilegio actual es en %cs. Cuando los dos primeros bits del cs del stack (que vienen con tf) son 3 (11), iret hace un cambio de ring a privilegios de usuario. Adjuntamos el codigo de microinstrucciones del procesador.
 
 ```PROTECTED-MODE-RETURN: (* PE = 1 *)
 IF CS(RPL) > CPL
