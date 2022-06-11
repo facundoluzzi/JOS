@@ -25,7 +25,6 @@ Los siguientes 4 procesos toman el env_id 4097, 4098, 4099, 4100
 En hexadecimal los procesos toman los ID: 0x1000, 0x1001, 0x1002, 0x1003, 0x1004
 
 
-<<<<<<< HEAD
 2-Supongamos que al arrancar el kernel se lanzan NENV procesos a ejecución. A continuación, se destruye el proceso asociado a envs[630] y se lanza un proceso que cada segundo, muere y se vuelve a lanzar (se destruye, y se vuelve a crear). ¿Qué identificadores tendrán esos procesos en las primeras cinco ejecuciones?
 
 
@@ -48,8 +47,6 @@ Los primeros 5 procesos tendran el ID:
 5to proceso: (0x4276 + (0x1000) & ~(0x03FF) + 0x0276 = 0x5276
 
 
-=======
->>>>>>> catedra/tp3
 env_pop_tf
 ----------
 
@@ -81,7 +78,6 @@ gdb_hello
 ---------
 1.Poner un breakpoint en env_pop_tf() y continuar la ejecución hasta allí.
 
-<<<<<<< HEAD
 2.En QEMU, entrar en modo monitor (Ctrl-a c), y mostrar las cinco primeras líneas del comando info registers.
 ```
 EAX=003bc000 EBX=f01e0000 ECX=f03bc000 EDX=00000210
@@ -216,21 +212,11 @@ En user/softint.c estamos intentando lanzar una interrupción de tipo page fault
 
 Podriamos habilitar los permisos necesarios para que el nivel de privilegio 3 pueda lanzar la interrupción page fault.
 
-=======
-...
-
-
-kern_idt
---------
-
-...
->>>>>>> catedra/tp3
 
 
 user_evilhello
 --------------
 
-<<<<<<< HEAD
 
 -¿En qué se diferencia el código de la versión en evilhello.c mostrada arriba?
 
@@ -290,7 +276,3 @@ Esta tiene el problema de que no verifica la que la memoria.
 Caso modificado:
 
 -Se accede al comienzo del kernel en `char first = *entry;`, lo hace el usuario. Se hace en ring 1, y tira page fault.
-=======
-...
-
->>>>>>> catedra/tp3

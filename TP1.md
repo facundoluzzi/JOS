@@ -14,7 +14,6 @@ La direccion final del kernel es f0118970 = 4027681136
 Luego del arranque, la dirección que recibe boot_alloc() es 4027681136. A este valor, boot_alloc() lo redondea a PGSIZE utilizando ROUNDUP, y almacena en nextfree una pagina mas de lo recibido. 
 
 
-<<<<<<< HEAD
 Por ejemplo, boot_alloc() hace lo siguiente:
 ```
 4027681136 mod 4096 = 2416 \\ resto
@@ -22,10 +21,6 @@ Por ejemplo, boot_alloc() hace lo siguiente:
 4027681136 + 1680 = 4027682816 
 ```
 La primera direccion de memoria que devolvera es 4027682816 = f0119000
-=======
-map_region_large
-----------------
->>>>>>> catedra/tp3
 
 2)
 ```
@@ -43,7 +38,6 @@ Continuing.
 The target architecture is assumed to be i386
 => 0xf0100a60 <boot_alloc>:	cmpl   $0x0,0xf0117538
 
-<<<<<<< HEAD
 Breakpoint 1, boot_alloc (n=4096) at kern/pmap.c:98
 98		if (!nextfree) {
 (gdb) print (char*) &end
@@ -142,5 +136,3 @@ Adjuntamos parte del enunciado:
 El arreglo se crea en tiempo de ejecución porque el número de páginas no es una constante sino que depende de la cantidad real de memoria de la máquina donde corre JOS.
 ```
 Esto refiere a el arreglo de pages y aclara que depende de la memoria de la maquina en la que corre. Por lo tanto, la cantidad de pages y/o su posicion puedan quedar alineadas y mapearse con paginas largas. Las otras dos llamadas son con posiciones fisicas y virtuales constantes, asi como el size tambien constante.
-=======
->>>>>>> catedra/tp3
