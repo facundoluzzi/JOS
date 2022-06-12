@@ -65,6 +65,11 @@ start32:
 	movl    $(RELOC(entry_pgdir)), %eax
 	movl    %eax, %cr3
 	# Turn on paging.
+
+	movl    %cr4, %eax
+	movl    $(CR4_PSE), %eax
+	movl    %eax, %cr4
+	
 	movl    %cr0, %eax
 	orl     $(CR0_PE|CR0_PG|CR0_WP), %eax
 	movl    %eax, %cr0
