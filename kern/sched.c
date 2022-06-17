@@ -39,18 +39,17 @@ sched_yield(void)
 			break;
 		}
 	}
-	
+
 	if ((curenv && curenv->env_status == ENV_RUNNING) & !found) {
 		idle = curenv;
 		found = true;
 	}
 
-	if (found){
+	if (found) {
 		env_run(idle);
 	}
 
 
-	
 	// sched_halt never returns
 	sched_halt();
 }

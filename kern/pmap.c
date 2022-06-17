@@ -350,8 +350,9 @@ page_init(void)
 
 	for (i = 1; i < npages; i++) {
 		int actual_position = i * PGSIZE;
+
 		if ((actual_position < IOPHYSMEM ||
-		     actual_position > (EXTPHYSMEM + memory_allocated)) &
+		     actual_position > memory_allocated) &
 		    (actual_position != MPENTRY_PADDR)) {
 			pages[i].pp_ref = 0;
 			pages[i].pp_link = page_free_list;
@@ -648,11 +649,10 @@ mmio_map_region(physaddr_t pa, size_t size)
 	if (base + size > MMIOLIM) {
 		panic("mmio_map_region: MMIOLIM overflow.");
 	}
-	boot_map_region(kern_pgdir, base, size, pa, PTE_PCD|PTE_PWT|PTE_W);
-	void *ret_base = (void*)base;
+	boot_map_region(kern_pgdir, base, size, pa, PTE_PCD | PTE_PWT | PTE_W);
+	void *ret_base = (void *) base;
 	base += size;
 	return ret_base;
-
 }
 
 static uintptr_t user_mem_check_addr;
