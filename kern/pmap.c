@@ -358,7 +358,7 @@ page_init(void)
 			pages[i].pp_link = page_free_list;
 			page_free_list = &pages[i];
 		}
-	}	
+	}
 }
 
 //
@@ -485,15 +485,16 @@ boot_map_region_page(pde_t *pgdir,
 	pte_t *pte;
 	pde_t *pde;
 
-	for (int offset = 0; offset < (size + activate_pte_ps); offset += page_size) {
+	for (int offset = 0; offset < (size + activate_pte_ps);
+	     offset += page_size) {
 		if (activate_pte_ps) {
 			pde = pgdir + PDX(va + offset);
-			*pde = (pa + offset)| perm | PTE_P | PTE_PS;
+			*pde = (pa + offset) | perm | PTE_P | PTE_PS;
 		} else {
 			pte = pgdir_walk(pgdir, (void *) (va + offset), 1);
 			*pte = (pa + offset) | perm | PTE_P;
 		}
-	}	
+	}
 }
 
 static void
@@ -504,7 +505,7 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 #else
 	if (!((va % LPGSIZE == 0) && (size >= LPGSIZE) && (pa % LPGSIZE == 0))) {
 		boot_map_region_page(pgdir, va, size, pa, perm, false, PGSIZE);
-	} else { 
+	} else {
 		boot_map_region_page(pgdir, va, size, pa, perm, true, LPGSIZE);
 	}
 #endif
@@ -651,7 +652,7 @@ mmio_map_region(physaddr_t pa, size_t size)
 		panic("mmio_map_region: MMIOLIM overflow.");
 	}
 	boot_map_region(kern_pgdir, base, size, pa, PTE_PCD | PTE_PWT | PTE_W);
-	
+
 	void *ret_base = (void *) base;
 	base += size;
 	return ret_base;
