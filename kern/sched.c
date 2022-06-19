@@ -29,11 +29,35 @@ sched_yield(void)
 	// below to halt the cpu.
 
 	// LAB 4: Your code here.
+	size_t begin;
+	if (curenv) {
+		begin = ENVX(curenv->env_id);
+	} else {
+		begin = 0;
+	}
+	bool found = false;
+	for (int i = 0; i < NENV; i++) {
+		size_t index = (begin + i) % NENV;
+		if (envs[index].env_status == ENV_RUNNABLE) {
+			idle = &envs[index];
+			found = true;
+			break;
+		}
+	}
+
+	if ((curenv && curenv->env_status == ENV_RUNNING) & !found) {
+		idle = curenv;
+		found = true;
+	}
+
+	if (found) {
+		env_run(idle);
+	}
+
 
 	// sched_halt never returns
 	sched_halt();
 }
-
 // Halt this CPU when there is nothing to do. Wait until the
 // timer interrupt wakes it up. This function never returns.
 //

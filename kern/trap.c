@@ -90,6 +90,7 @@ trap_init(void)
 	void t_align();
 	void t_mchk();
 	void t_simderr();
+	void t_timer();
 	void t_syscall();
 
 	SETGATE(idt[T_DIVIDE], false, GD_KT, t_divide, KERNEL);
@@ -110,6 +111,7 @@ trap_init(void)
 	SETGATE(idt[T_ALIGN], false, GD_KT, t_align, KERNEL);
 	SETGATE(idt[T_MCHK], false, GD_KT, t_mchk, KERNEL);
 	SETGATE(idt[T_SIMDERR], false, GD_KT, t_simderr, KERNEL);
+	SETGATE(idt[IRQ_OFFSET + IRQ_TIMER], false, GD_KT, t_timer, USER);
 	SETGATE(idt[T_SYSCALL], false, GD_KT, t_syscall, USER);
 	// Per-CPU setup
 	trap_init_percpu();
@@ -245,18 +247,15 @@ trap_dispatch(struct Trapframe *tf)
 		                              regs->reg_esi);
 		return;
 	}
+	case IRQ_OFFSET + IRQ_TIMER:
+		lapic_eoi();
+		sched_yield();
+		return;
 	default:
 		break;
 	}
+
 	print_trapframe(tf);
-	switch (tf->tf_trapno) {
-	case T_BRKPT:
-		monitor(tf);
-		return;
-	case T_PGFLT:
-		page_fault_handler(tf);
-		return;
-	}
 	if (tf->tf_cs == GD_KT)
 		panic("unhandled trap in kernel");
 	else {
