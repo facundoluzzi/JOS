@@ -117,14 +117,14 @@ boot_alloc(uint32_t n)
 	// LAB 2: Your code here.
 
 	int exceeded = npages_basemem - ((int) (n + nextfree) / PGSIZE);
-	nextfree = ROUNDUP((char *) (n + nextfree), PGSIZE);
+	result = nextfree;
+	nextfree = ROUNDUP((n + nextfree), PGSIZE);
+
 	if (exceeded > 0) {
-		result = nextfree;
 		return result;
 	} else {
 		panic("Memoria insuficiente\n");
 	}
-
 	return NULL;
 }
 
@@ -343,13 +343,17 @@ page_init(void)
 	// Change the code to reflect this.
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
+	_Static_assert(MPENTRY_PADDR % PGSIZE == 0,
+	               "MPENTRY_PADDR is not page-aligned");
 	size_t i;
 	int memory_allocated = PADDR(boot_alloc(0));
 
 	for (i = 1; i < npages; i++) {
 		int actual_position = i * PGSIZE;
-		if (actual_position < IOPHYSMEM ||
-		    actual_position > (EXTPHYSMEM + memory_allocated)) {
+
+		if ((actual_position < IOPHYSMEM ||
+		     actual_position > memory_allocated) &
+		    (actual_position != MPENTRY_PADDR)) {
 			pages[i].pp_ref = 0;
 			pages[i].pp_link = page_free_list;
 			page_free_list = &pages[i];
@@ -480,13 +484,15 @@ boot_map_region_page(pde_t *pgdir,
 	int total_pages = size / page_size;
 	pte_t *pte;
 	pde_t *pde;
-	for (int i = 0; i <= total_pages; va += page_size, pa += page_size, i++) {
+
+	for (int offset = 0; offset < (size + activate_pte_ps);
+	     offset += page_size) {
 		if (activate_pte_ps) {
-			pde = pgdir + PDX(va);
-			*pde = pa | perm | PTE_P | PTE_PS;
+			pde = pgdir + PDX(va + offset);
+			*pde = (pa + offset) | perm | PTE_P | PTE_PS;
 		} else {
-			pte = pgdir_walk(pgdir, (void *) va, 1);
-			*pte = pa | perm | PTE_P;
+			pte = pgdir_walk(pgdir, (void *) (va + offset), 1);
+			*pte = (pa + offset) | perm | PTE_P;
 		}
 	}
 }
@@ -641,7 +647,15 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+	size = ROUNDUP(size, PGSIZE);
+	if (base + size > MMIOLIM) {
+		panic("mmio_map_region: MMIOLIM overflow.");
+	}
+	boot_map_region(kern_pgdir, base, size, pa, PTE_PCD | PTE_PWT | PTE_W);
+
+	void *ret_base = (void *) base;
+	base += size;
+	return ret_base;
 }
 
 static uintptr_t user_mem_check_addr;
