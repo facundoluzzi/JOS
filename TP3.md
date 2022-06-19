@@ -140,7 +140,20 @@ Ayuda: Leer con atención la documentación de sys_page_map() en kern/syscall.c,
 ipc_recv
 --------
 
-...
+Un proceso podría intentar enviar el valor númerico -E_INVAL vía ipc_send(). ¿Cómo es posible distinguir si es un error, o no?
+
+envid_t src = -1;
+int r = ipc_recv(&src, 0, NULL);
+
+// Facilmente checkeable en ipc_recv() podemos observar que cuando la syscall falla, se almacena el valor 0 en
+// env_store_ret, que en este caso es el puntero a src, por lo que src toma el valor 0.
+if (r < 0)
+  if (src == 0) 
+    puts("Hubo error.");
+  else
+    puts("Valor negativo correcto.")
+
+
 
 
 sys_ipc_try_send

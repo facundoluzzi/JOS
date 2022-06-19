@@ -167,10 +167,10 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	//   allocated!
 	// LAB 4: Your code here.
 	struct Env *e;
-	int err = envid2env(envid,&e, 1);
+	int err = envid2env(envid, &e, 1);
 	if (err < 0) {
 		return err;
-	} else if ((uintptr_t)va >= UTOP || (uintptr_t)va % PGSIZE != 0) {
+	} else if ((uintptr_t) va >= UTOP || (uintptr_t) va % PGSIZE != 0) {
 		return -E_INVAL;
 	} else if ((perm & ~PTE_SYSCALL) != 0) {
 		return -E_INVAL;
@@ -218,9 +218,9 @@ sys_page_map(envid_t srcenvid, void *srcva, envid_t dstenvid, void *dstva, int p
 		return -E_INVAL;
 	}
 
-	uintptr_t srcaddr = (uintptr_t)srcva, destaddr = (uintptr_t)dstva;
-	if (srcaddr >= UTOP || destaddr >= UTOP
-	    || srcaddr % PGSIZE != 0 || destaddr % PGSIZE) {
+	uintptr_t srcaddr = (uintptr_t) srcva, destaddr = (uintptr_t) dstva;
+	if (srcaddr >= UTOP || destaddr >= UTOP || srcaddr % PGSIZE != 0 ||
+	    destaddr % PGSIZE) {
 		return -E_INVAL;
 	}
 
@@ -258,7 +258,7 @@ static int
 sys_page_unmap(envid_t envid, void *va)
 {
 	// LAB 4: Your code here.
-	if ((uintptr_t)va >= UTOP || (uintptr_t)va % PGSIZE != 0) {
+	if ((uintptr_t) va >= UTOP || (uintptr_t) va % PGSIZE != 0) {
 		return -E_INVAL;
 	}
 
@@ -332,7 +332,14 @@ static int
 sys_ipc_recv(void *dstva)
 {
 	// LAB 4: Your code here.
-	panic("sys_ipc_recv not implemented");
+	uintptr_t va = (uintptr_t) dstva;
+	if (va < UTOP && va % PGSIZE != 0) {
+		return -E_INVAL;
+	}
+	curenv->env_status = ENV_NOT_RUNNABLE;
+	curenv->env_ipc_recving = true;
+	curenv->env_ipc_dstva = dstva;
+	curenv->env_tf.tf_regs.reg_eax = 0;
 	return 0;
 }
 
@@ -360,14 +367,17 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	case SYS_exofork:
 		return sys_exofork();
 	case SYS_env_set_status:
-		return sys_env_set_status((envid_t)a1, a2);
+		return sys_env_set_status((envid_t) a1, a2);
 	case SYS_page_alloc:
-		return sys_page_alloc((envid_t)a1, (void *)a2, a3);
+		return sys_page_alloc((envid_t) a1, (void *) a2, a3);
 	case SYS_page_map:
-		return sys_page_map((envid_t)a1, (void *)a2,
-			            (envid_t)a3, (void *)a4, (int)a5);
+		return sys_page_map((envid_t) a1,
+		                    (void *) a2,
+		                    (envid_t) a3,
+		                    (void *) a4,
+		                    (int) a5);
 	case SYS_page_unmap:
-		return sys_page_unmap((envid_t)a1, (void *)a2);
+		return sys_page_unmap((envid_t) a1, (void *) a2);
 	default:
 		return -E_INVAL;
 	}
