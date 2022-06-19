@@ -32,17 +32,17 @@ sched_yield(void)
 	size_t begin;
 	if (curenv) {
 		begin = ENVX(curenv->env_id);
-	}else{
+	} else {
 		begin = 0;
 	}
 	bool found = false;
 	for (int i = 0; i < NENV; i++) {
 		size_t index = (begin + i) % NENV;
-			if (envs[index].env_status == ENV_RUNNABLE) {
-				idle = &envs[index];
-				found = true;
-				break;
-			}
+		if (envs[index].env_status == ENV_RUNNABLE) {
+			idle = &envs[index];
+			found = true;
+			break;
+		}
 	}
 
 	if ((curenv && curenv->env_status == ENV_RUNNING) & !found) {

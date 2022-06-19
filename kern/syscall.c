@@ -87,7 +87,7 @@ sys_exofork(void)
 	// LAB 4: Your code here.
 	struct Env *e;
 	int err = env_alloc(&e, curenv->env_id);
-	if (err  < 0) {
+	if (err < 0) {
 		return err;
 	}
 
@@ -96,7 +96,6 @@ sys_exofork(void)
 	e->env_tf.tf_regs.reg_eax = 0;
 
 	return e->env_id;
-
 }
 
 // Set envid's env_status to status, which must be ENV_RUNNABLE
@@ -124,7 +123,7 @@ sys_env_set_status(envid_t envid, int status)
 		return -E_INVAL;
 	}
 	e->env_status = status;
-	return 0;	
+	return 0;
 }
 
 // Set the page fault upcall for 'envid' by modifying the corresponding struct
