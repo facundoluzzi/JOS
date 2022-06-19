@@ -58,6 +58,7 @@ sched_yield(void)
 	// sched_halt never returns
 	sched_halt();
 }
+
 // Halt this CPU when there is nothing to do. Wait until the
 // timer interrupt wakes it up. This function never returns.
 //
