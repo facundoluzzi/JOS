@@ -109,8 +109,8 @@ trap_init(void)
 	SETGATE(idt[T_ALIGN], false, GD_KT, t_align, KERNEL);
 	SETGATE(idt[T_MCHK], false, GD_KT, t_mchk, KERNEL);
 	SETGATE(idt[T_SIMDERR], false, GD_KT, t_simderr, KERNEL);
-	SETGATE(idt[T_SYSCALL], false, GD_KT, t_syscall, USER);
 	SETGATE(idt[IRQ_OFFSET + IRQ_TIMER], false, GD_KT, t_timer, USER);
+	SETGATE(idt[T_SYSCALL], false, GD_KT, t_syscall, USER);
 
 	// Per-CPU setup
 	trap_init_percpu();
@@ -156,7 +156,7 @@ trap_init_percpu(void)
 	uint16_t seg = idx << 3;
 
 	gdt[idx] =
-	        SEG16(STS_T32A, (uint32_t)(ts), sizeof(struct Taskstate) - 1, 0);
+	        SEG16(STS_T32A, (uint32_t) (ts), sizeof(struct Taskstate) - 1, 0);
 	gdt[idx].sd_s = 0;
 
 	// Load the TSS selector (like other segment selectors, the
