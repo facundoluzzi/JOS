@@ -156,7 +156,7 @@ trap_init_percpu(void)
 	uint16_t seg = idx << 3;
 
 	gdt[idx] =
-	        SEG16(STS_T32A, (uint32_t) (ts), sizeof(struct Taskstate) - 1, 0);
+	        SEG16(STS_T32A, (uint32_t)(ts), sizeof(struct Taskstate) - 1, 0);
 	gdt[idx].sd_s = 0;
 
 	// Load the TSS selector (like other segment selectors, the
@@ -376,7 +376,35 @@ page_fault_handler(struct Trapframe *tf)
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
 	// LAB 4: Your code here.
+	if (curenv->env_pgfault_upcall) {
+		struct UTrapframe *u;
 
+		// Inicializar a la dirección correcta por abajo de UXSTACKTOP.
+		// No olvidar llamadas a user_mem_assert().
+		uintptr_t tfbottom = UXSTACKTOP - PGSIZE;
+		uintptr_t tftop = UXSTACKTOP;
+
+		if (tf->tf_esp >= tfbottom && tf->tf_esp < tftop) {
+			tftop = tf->tf_esp - 4;
+		}
+
+		u = (struct UTrapframe *) (tftop - sizeof(struct UTrapframe));
+		user_mem_assert(curenv, u, sizeof(struct UTrapframe), PTE_U | PTE_W);
+
+		// Completar el UTrapframe, copiando desde "tf".
+		u->utf_fault_va = fault_va;
+		u->utf_err = tf->tf_err;
+		u->utf_regs = tf->tf_regs;
+		u->utf_eip = tf->tf_eip;
+		u->utf_eflags = tf->tf_eflags;
+		u->utf_esp = tf->tf_esp;
+
+		// Cambiar a donde se va a ejecutar el proceso.
+		tf->tf_eip = (uintptr_t)(curenv->env_pgfault_upcall);
+		tf->tf_esp = (uintptr_t) u;
+		// Saltar.
+		env_run(curenv);
+	}
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
 	        curenv->env_id,

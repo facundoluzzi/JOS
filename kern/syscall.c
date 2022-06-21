@@ -137,7 +137,13 @@ static int
 sys_env_set_pgfault_upcall(envid_t envid, void *func)
 {
 	// LAB 4: Your code here.
-	panic("sys_env_set_pgfault_upcall not implemented");
+	struct Env *e;
+	int err = envid2env(envid, &e, 1);
+	if (err < 0) {
+		return err;
+	}
+	e->env_pgfault_upcall = func;
+	return 0;
 }
 
 // Allocate a page of memory and map it at 'va' with permission
@@ -314,7 +320,42 @@ static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 {
 	// LAB 4: Your code here.
-	panic("sys_ipc_try_send not implemented");
+	int err = 0;
+	uintptr_t va = (uintptr_t) srcva;
+	struct Env *env = NULL;
+	if ((err = envid2env(envid, &env, false)) < 0) {
+		return err;
+	}
+	if (!env->env_ipc_recving) {
+		return -E_IPC_NOT_RECV;
+	}
+
+	int received_perm = 0;
+	struct PageInfo *p;
+
+	pte_t *pte = NULL;
+
+	if ((va < UTOP && (va % PGSIZE) != 0) ||
+	    (va < UTOP && (perm & ~PTE_SYSCALL) != 0) ||
+	    ((p = page_lookup(curenv->env_pgdir, srcva, &pte)) == NULL) ||
+	    ((perm & PTE_W) && !(*pte & PTE_W)))
+		return -E_INVAL;
+
+	if (va < UTOP) {
+		if ((err = page_insert(
+		             env->env_pgdir, p, env->env_ipc_dstva, perm)) < 0) {
+			return err;
+		}
+		received_perm = perm;
+	}
+
+	env->env_status = ENV_RUNNABLE;
+	env->env_ipc_value = value;
+	env->env_ipc_from = curenv->env_id;
+	env->env_ipc_perm = received_perm;
+	env->env_ipc_recving = false;
+
+	return 0;
 }
 
 // Block until a value is ready.  Record that you want to receive
@@ -378,6 +419,13 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		                    (int) a5);
 	case SYS_page_unmap:
 		return sys_page_unmap((envid_t) a1, (void *) a2);
+	case SYS_env_set_pgfault_upcall:
+		return sys_env_set_pgfault_upcall((envid_t) a1, (void *) a2);
+	case SYS_ipc_recv:
+		return sys_ipc_recv((void *) a1);
+	case SYS_ipc_try_send:
+		return sys_ipc_try_send(
+		        (envid_t) a1, (uint32_t) a2, (void *) a3, (unsigned) a4);
 	default:
 		return -E_INVAL;
 	}
