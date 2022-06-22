@@ -47,7 +47,7 @@ Welcome to the JOS kernel monitor!
 ```
 En la salida de make qemu-nox se ve claramente el trabajo de un scheduler RoundRobin. Cada proceso tiene su iteracion y se le da paso al otro proceso para la suya, y asi sucesivamente. 
 
-Desde ya que esto se da por la llamada a ` sys_yield()`, quien imprime la logica de cuando hacer los saltos entre procesos. Este seria un caso 'cooperativo' en el que cada proceso se 'desaloja' por si solo.
+Desde ya que esto se da por la llamada a `sys_yield()`, quien imprime la logica de cuando hacer los saltos entre procesos. Este seria un caso 'cooperativo' en el que cada proceso se 'desaloja' por si solo.
 
 Adjuntamos la funcion:
 
@@ -146,7 +146,7 @@ envid_t src = -1;
 int r = ipc_recv(&src, 0, NULL);
 
 // Facilmente checkeable en ipc_recv() podemos observar que cuando la syscall falla, se almacena el valor 0 en
-// env_store_ret, que en este caso es el puntero a src, por lo que src toma el valor 0.
+// from_env_store, que en este caso es el puntero a src, por lo que src toma el valor 0.
 if (r < 0)
   if (src == 0) 
     puts("Hubo error.");
@@ -154,10 +154,28 @@ if (r < 0)
     puts("Valor negativo correcto.")
 
 
-
-
 sys_ipc_try_send
 ----------------
 
-...
+Una estrategia que podemos utilizar es la siguiente: si un proceso A intenta enviar un mensaje a un proceso B, pero B no esta esperando un mensaje, entonces se setea al proceso A en estado ENV_NOT_RUNNABLE, y guardamos en una cola 'senders' propia del proceso B, una referencia al proceso A. Entonces, 'senders' va a contener en cada posicion una referencia a cada proceso que haya llamado a sys_ipc_send() para enviarle un mensaje. Luego, cuando el proceso B llame a sys_ipc_recv() lo primero que hara sera chequear si hay alguna referencia dentro de la cola 'senders'. En caso afirmativo, se realiza una llamada a sys_env_set_status(), seteando al proceso A (o el proceso remitente del mensaje) en estado ENV_RUNNABLE. 
 
+Las modificaciones correspondientes serian:
+
+- cambios en struct Env:
+    1. senders: cola (atributo) que contiene una referencia a cada proceso que intento enviar un mensaje al Env correspondiente, mientras que este no estaba esperando un mensaje.
+    2. env_add_sender(process): metodo para agregar un elemento a la cola senders.
+    3. env_get_sender(): metodo que devuelve un elemento de la cola, y lo elimina de la misma. Devuelve NULL si esta vacia.
+- sys_ipc_send(): verificamos que el proceso destinatario no este esperando un mensaje, agregamos una referencia al proceso remitente a la cola, y seteamos al proceso actual en ENV_NOT_RUNNABLE
+
+    	if (!env->env_ipc_recving) {
+            env->env_add_sender(curenv->env_id);
+            curenv->env_status = ENV_NOT_RUNNABLE;
+	    }
+- sys_ipc_recv(): agregamos una llamada a env_get_sender() del env actual, que devuelve el primer elemento de la cola 'senders' y llamamos a sys_env_set_status para poner en estado ENV_RUNNABLE al proceso remitente
+
+        envid_t sender_env_id;
+        if ((sender_env_id = curenv.env_get_sender()) != NULL) {
+            sys_env_set_status(sender_env_id, ENV_RUNNABLE);
+        }
+
+Con este diseño, varios procesos pueden enviar un mensaje a B, y quedar cada uno bloqueado mientras B no consuma su mensaje. Luego, cada proceso despertara teniendo en cuenta el orden en el que entraron a la cola, siguiendo el metodo FIFO. Por otro lado, si hay posibilidad de deadlock, ya que cada proceso remitente depende de que el proceso destinatario llame a ipc_recv() para volver a un estado ENV_RUNNABLE, entonces, si un proceso A llama a sys_ipc_send() para enviar un mensaje al proceso B, y luego el proceso B llama a sys_ipc_send() para enviar un mensaje al proceso A, ambos procesos estaran a la expectativa de que el otro llame a sys_ipc_recv() para volver a un estado ENV_RUNNABLE, lo cual no sera posible.

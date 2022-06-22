@@ -374,6 +374,7 @@ sys_ipc_recv(void *dstva)
 {
 	// LAB 4: Your code here.
 	uintptr_t va = (uintptr_t) dstva;
+
 	if (va < UTOP && va % PGSIZE != 0) {
 		return -E_INVAL;
 	}
