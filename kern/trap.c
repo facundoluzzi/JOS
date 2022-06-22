@@ -156,7 +156,7 @@ trap_init_percpu(void)
 	uint16_t seg = idx << 3;
 
 	gdt[idx] =
-	        SEG16(STS_T32A, (uint32_t)(ts), sizeof(struct Taskstate) - 1, 0);
+	        SEG16(STS_T32A, (uint32_t) (ts), sizeof(struct Taskstate) - 1, 0);
 	gdt[idx].sd_s = 0;
 
 	// Load the TSS selector (like other segment selectors, the
@@ -400,7 +400,7 @@ page_fault_handler(struct Trapframe *tf)
 		u->utf_esp = tf->tf_esp;
 
 		// Cambiar a donde se va a ejecutar el proceso.
-		tf->tf_eip = (uintptr_t)(curenv->env_pgfault_upcall);
+		tf->tf_eip = (uintptr_t) (curenv->env_pgfault_upcall);
 		tf->tf_esp = (uintptr_t) u;
 		// Saltar.
 		env_run(curenv);
