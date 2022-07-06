@@ -50,6 +50,12 @@ bc_pgfault(struct UTrapframe *utf)
 	// the disk.
 	//
 	// LAB 5: you code here:
+	if (sys_page_alloc(thisenv->env_id, ROUNDDOWN(addr, BLKSIZE), PTE_W | PTE_U) < 0){
+		panic("sys_page_alloc failed at bc pgfault");
+	}
+	if (ide_read(blockno * BLKSECTS, ROUNDDOWN(addr, BLKSIZE), BLKSECTS) < 0) {
+		panic("ide read failed at bc pgfault");
+	}
 
 	// Clear the dirty bit for the disk block page since we just read the
 	// block from disk
