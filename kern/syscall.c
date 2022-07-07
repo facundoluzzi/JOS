@@ -351,10 +351,10 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 
 	pte_t *pte = NULL;
 
-	if ((va < UTOP && (va % PGSIZE) != 0) ||
-	    (va < UTOP && (perm & ~PTE_SYSCALL) != 0) ||
-	    ((p = page_lookup(curenv->env_pgdir, srcva, &pte)) == NULL) ||
-	    ((perm & PTE_W) && !(*pte & PTE_W)))
+	if (va < UTOP &&
+	    ((va % PGSIZE) != 0 || (perm & ~PTE_SYSCALL) != 0 ||
+	     ((p = page_lookup(curenv->env_pgdir, srcva, &pte)) == NULL) ||
+	     ((perm & PTE_W) && !(*pte & PTE_W))))
 		return -E_INVAL;
 
 	if (va < UTOP) {
