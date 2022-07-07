@@ -65,7 +65,13 @@ alloc_block(void)
 	// super->s_nblocks blocks in the disk altogether.
 
 	// LAB 5: Your code here.
-	panic("alloc_block not implemented");
+	for (int i = 0; i < super->s_nblocks; i++) {
+		if (block_is_free(i)) {
+			bitmap[i / 32] &= ~(1 << (i % 32));
+			flush_block(diskaddr(i));
+			return i;
+		}
+	}
 	return -E_NO_DISK;
 }
 
@@ -136,7 +142,33 @@ static int
 file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool alloc)
 {
 	// LAB 5: Your code here.
-	panic("file_block_walk not implemented");
+	// -E_INVAL if filebno is out of range (it's >= NDIRECT + NINDIRECT).
+	if (filebno >= NDIRECT + NINDIRECT) {
+		return -E_INVAL;
+	}
+	if (filebno < NDIRECT) {
+		*ppdiskbno = &f->f_direct[filebno];
+		return 0;
+	}
+
+	if (f->f_indirect == 0) {
+		if (!alloc) {
+			// -E_NOT_FOUND if the function needed to allocate an
+			// indirect block, but alloc was 0.
+			return -E_NOT_FOUND;
+		} else {
+			int number_allocated = alloc_block();
+			//-E_NO_DISK if there's no space on the disk for an indirect block
+			if (number_allocated < 0) {
+				return -E_NO_DISK;
+			}
+			f->f_indirect = number_allocated;
+			flush_block(diskaddr(f->f_indirect));
+		}
+	}
+	uint32_t *indirect_baddr = (uint32_t *) diskaddr(f->f_indirect);
+	*ppdiskbno = &indirect_baddr[filebno - NDIRECT];
+	return 0;
 }
 
 // Set *blk to the address in memory where the filebno'th
@@ -151,7 +183,26 @@ int
 file_get_block(struct File *f, uint32_t filebno, char **blk)
 {
 	// LAB 5: Your code here.
-	panic("file_get_block not implemented");
+	//	-E_INVAL if filebno is out of range.
+	uint32_t *ppdiskbno;
+	int err;
+	if (filebno >= NDIRECT + NINDIRECT) {
+		return -E_INVAL;
+	}
+	if ((err = file_block_walk(f, filebno, &ppdiskbno, true)) < 0) {
+		return err;
+	}
+
+	if (*ppdiskbno == 0) {
+		int number_allocated = alloc_block();
+		if (number_allocated < 0) {
+			return -E_NO_DISK;
+		}
+		*ppdiskbno = number_allocated;
+	}
+
+	*blk = diskaddr(*ppdiskbno);
+	return 0;
 }
 
 // Try to find a file named "name" in dir.  If so, set *file to it.
