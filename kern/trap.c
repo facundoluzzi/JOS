@@ -90,6 +90,8 @@ trap_init(void)
 	void t_simderr();
 	void t_syscall();
 	void t_timer();
+	void t_kdb();
+	void t_serial();
 
 	SETGATE(idt[T_DIVIDE], false, GD_KT, t_divide, KERNEL);
 	SETGATE(idt[T_DEBUG], false, GD_KT, t_debug, KERNEL);
@@ -111,7 +113,8 @@ trap_init(void)
 	SETGATE(idt[T_SIMDERR], false, GD_KT, t_simderr, KERNEL);
 	SETGATE(idt[IRQ_OFFSET + IRQ_TIMER], false, GD_KT, t_timer, USER);
 	SETGATE(idt[T_SYSCALL], false, GD_KT, t_syscall, USER);
-
+	SETGATE(idt[IRQ_OFFSET + IRQ_KBD], false, GD_KT, t_kdb, USER);
+	SETGATE(idt[IRQ_OFFSET + IRQ_SERIAL], false, GD_KT, t_serial, USER);
 	// Per-CPU setup
 	trap_init_percpu();
 }
@@ -257,6 +260,12 @@ trap_dispatch(struct Trapframe *tf)
 	case IRQ_OFFSET + IRQ_TIMER:
 		lapic_eoi();
 		sched_yield();
+		return;
+	case IRQ_OFFSET + IRQ_KBD:
+		kbd_intr();
+		return;
+	case IRQ_OFFSET + IRQ_SERIAL:
+		serial_intr();
 		return;
 	default:
 		break;

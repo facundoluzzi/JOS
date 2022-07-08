@@ -323,5 +323,19 @@ static int
 copy_shared_pages(envid_t child)
 {
 	// LAB 5: Your code here.
+	void *va = 0;
+	for (va; va < (void *) UTOP; va += BLKSIZE) {
+		if ((uvpd[PDX(va)] & PTE_P) && (uvpt[PGNUM(va)] & PTE_P) &&
+		    (uvpt[PGNUM(va)] & PTE_SHARE)) {
+			if (sys_page_map(0,
+			                 va,
+			                 child,
+			                 va,
+			                 uvpt[PGNUM(va)] & PTE_SYSCALL) < 0) {
+				panic("sys page map failed at copy shared "
+				      "pages");
+			}
+		}
+	}
 	return 0;
 }
