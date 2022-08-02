@@ -349,6 +349,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 			                       perm)) < 0) {
 				return err;
 			}
+
 			received_perm = perm;
 		}
 	}

@@ -68,7 +68,7 @@ struct Env {
 	// Desafio IPC Bloqueante
 	envid_t env_ipc_pending_sender;
 	uint32_t env_ipc_pending_value;
-	struct Page *env_ipc_pending_page;
+	struct PageInfo *env_ipc_pending_page;
 	int env_ipc_pending_perm;
 };
 
