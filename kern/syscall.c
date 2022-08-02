@@ -342,19 +342,32 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		return -E_INVAL;
 
 	if (va < UTOP) {
-		if ((err = page_insert(
-		             env->env_pgdir, p, env->env_ipc_dstva, perm)) < 0) {
-			return err;
+		if (env->env_ipc_recving) {
+			if ((err = page_insert(env->env_pgdir,
+			                       p,
+			                       env->env_ipc_dstva,
+			                       perm)) < 0) {
+				return err;
+			}
+			received_perm = perm;
 		}
-		received_perm = perm;
 	}
 
-	env->env_status = ENV_RUNNABLE;
-	env->env_ipc_value = value;
-	env->env_ipc_from = curenv->env_id;
+	if (env->env_ipc_recving) {
+		env->env_status = ENV_RUNNABLE;
+		env->env_ipc_value = value;
+		env->env_ipc_from = curenv->env_id;
+		env->env_ipc_recving = false;
+		env->env_tf.tf_regs.reg_eax = 0;
+	} else {
+		curenv->env_status = ENV_NOT_RUNNABLE;
+		curenv->env_ipc_pending_sender = envid;
+		curenv->env_ipc_pending_value = value;
+		curenv->env_ipc_pending_perm = perm;
+		curenv->env_ipc_pending_page = p;
+		sched_yield();
+	}
 	env->env_ipc_perm = received_perm;
-	env->env_ipc_recving = false;
-
 	return 0;
 }
 
