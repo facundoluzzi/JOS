@@ -328,7 +328,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	}
 	if (env->env_ipc_recving)
 		env->env_ipc_perm = 0;
-	else{
+	else {
 		curenv->env_ipc_pending_page = NULL;
 	}
 
