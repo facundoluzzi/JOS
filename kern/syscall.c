@@ -326,11 +326,12 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	if ((err = envid2env(envid, &env, false)) < 0) {
 		return err;
 	}
-	if (!env->env_ipc_recving) {
-		return -E_IPC_NOT_RECV;
+	if (env->env_ipc_recving)
+		env->env_ipc_perm = 0;
+	else{
+		curenv->env_ipc_pending_page = NULL;
 	}
 
-	int received_perm = 0;
 	struct PageInfo *p;
 
 	pte_t *pte = NULL;
@@ -349,7 +350,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 			                       perm)) < 0) {
 				return err;
 			}
-			received_perm = perm;
+			env->env_ipc_perm = perm;
 		} else {
 			curenv->env_ipc_pending_perm = perm;
 			curenv->env_ipc_pending_page = p;
@@ -361,7 +362,6 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		env->env_ipc_value = value;
 		env->env_ipc_from = curenv->env_id;
 		env->env_ipc_recving = false;
-		env->env_ipc_perm = received_perm;
 		env->env_tf.tf_regs.reg_eax = 0;
 	} else {
 		curenv->env_status = ENV_NOT_RUNNABLE;
@@ -415,9 +415,8 @@ sys_ipc_recv(void *dstva)
 			curenv->env_ipc_value = env->env_ipc_pending_value;
 			curenv->env_ipc_from = env->env_id;
 			env->env_ipc_pending_sender = 0;
-			env->env_status = ENV_RUNNABLE;  // Wake up the sender.
-			env->env_tf.tf_regs.reg_eax =
-			        0;  // Make the sender's `sys_ipc_try_send()` return 0.
+			env->env_status = ENV_RUNNABLE;
+			env->env_tf.tf_regs.reg_eax = 0;
 			return 0;
 		}
 		i++;
