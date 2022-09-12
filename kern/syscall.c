@@ -125,6 +125,34 @@ sys_env_set_status(envid_t envid, int status)
 	return 0;
 }
 
+// Set envid's trap frame to 'tf'.
+// tf is modified to make sure that user environments always run at code
+// protection level 3 (CPL 3) with interrupts enabled.
+//
+// Returns 0 on success, < 0 on error.  Errors are:
+//	-E_BAD_ENV if environment envid doesn't currently exist,
+//		or the caller doesn't have permission to change envid.
+static int
+sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
+{
+	// LAB 5: Your code here.
+	// Remember to check whether the user has supplied us with a good
+	// address!
+	struct Env *env;
+	if (envid2env(envid, &env, 0) < 0) {
+		return -E_BAD_ENV;
+	}
+	user_mem_assert(env, tf, sizeof(struct Trapframe), PTE_U);
+
+	env->env_tf = *tf;
+	env->env_tf.tf_cs |= 3;
+	env->env_tf.tf_eflags |= FL_IF;
+	env->env_tf.tf_eflags &= ~FL_IOPL_MASK;
+	env->env_tf.tf_eflags |= FL_IOPL_0;
+
+	return 0;
+}
+
 // Set the page fault upcall for 'envid' by modifying the corresponding struct
 // Env's 'env_pgfault_upcall' field.  When 'envid' causes a page fault, the
 // kernel will push a fault record onto the exception stack, then branch to
@@ -336,10 +364,10 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 
 	pte_t *pte = NULL;
 
-	if ((va < UTOP && (va % PGSIZE) != 0) ||
-	    (va < UTOP && (perm & ~PTE_SYSCALL) != 0) ||
-	    ((p = page_lookup(curenv->env_pgdir, srcva, &pte)) == NULL) ||
-	    ((perm & PTE_W) && !(*pte & PTE_W)))
+	if (va < UTOP &&
+	    ((va % PGSIZE) != 0 || (perm & ~PTE_SYSCALL) != 0 ||
+	     ((p = page_lookup(curenv->env_pgdir, srcva, &pte)) == NULL) ||
+	     ((perm & PTE_W) && !(*pte & PTE_W))))
 		return -E_INVAL;
 
 	if (va < UTOP) {
@@ -472,6 +500,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	case SYS_ipc_try_send:
 		return sys_ipc_try_send(
 		        (envid_t) a1, (uint32_t) a2, (void *) a3, (unsigned) a4);
+	case SYS_env_set_trapframe:
+		return sys_env_set_trapframe((envid_t) a1,
+		                             (struct Trapframe *) a2);
 	default:
 		return -E_INVAL;
 	}

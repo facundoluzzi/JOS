@@ -157,7 +157,6 @@ if (r < 0)
 sys_ipc_try_send
 ----------------
 
-Una estrategia que podemos utilizar es la siguiente: si un proceso A intenta enviar un mensaje a un proceso B, pero B no esta esperando un mensaje, entonces se setea al proceso A en estado ENV_NOT_RUNNABLE, y guardamos en una cola 'senders' propia del proceso B, una referencia al proceso A. Entonces, 'senders' va a contener en cada posicion una referencia a cada proceso que haya llamado a sys_ipc_send() para enviarle un mensaje. Luego, cuando el proceso B llame a sys_ipc_recv() lo primero que hara sera chequear si hay alguna referencia dentro de la cola 'senders'. En caso afirmativo, se realiza una llamada a sys_env_set_status(), seteando al proceso A (o el proceso remitente del mensaje) en estado ENV_RUNNABLE. 
 
 Las modificaciones correspondientes serian:
 
