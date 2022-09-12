@@ -65,6 +65,7 @@ endif
 
 # try to generate a unique GDB port
 GDBPORT	:= $(shell expr `id -u` % 5000 + 25000)
+GDBSERV	:= 127.0.0.1:$(GDBPORT)
 
 CC	:= $(GCCPREFIX)gcc -pipe
 AS	:= $(GCCPREFIX)as
@@ -84,8 +85,8 @@ PERL	:= perl
 # -fno-builtin is required to avoid refs to undefined functions in the kernel.
 # Only optimize to -O1 to discourage inlining, which complicates backtraces.
 CFLAGS := $(CFLAGS) $(DEFS) $(LABDEFS) -O1 -fno-builtin -I$(TOP) -MD
-CFLAGS += -fno-omit-frame-pointer
-CFLAGS += -std=gnu99
+CFLAGS += -fno-omit-frame-pointer -fno-pic -fno-inline
+CFLAGS += -std=c99 -fasm -ffreestanding -fno-strict-aliasing
 CFLAGS += -Wall -Wno-format -Wno-unused -Werror -gstabs -m32
 # -fno-tree-ch prevented gcc from sometimes reordering read_ebp() before
 # mon_backtrace()'s function prologue on gcc version: (Debian 4.7.2-5) 4.7.2
@@ -93,6 +94,9 @@ CFLAGS += -fno-tree-ch
 
 # Add -fno-stack-protector if the option exists.
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
+
+# Fix building with GCC 9
+CFLAGS += -Wno-address-of-packed-member
 
 # Common linker flags
 LDFLAGS := -m elf_i386
@@ -136,37 +140,40 @@ $(OBJDIR)/.vars.%: FORCE
 # Include Makefrags for subdirectories
 include boot/Makefrag
 include kern/Makefrag
+include lib/Makefrag
+include user/Makefrag
+include fs/Makefrag
 
 
-QEMUOPTS = -drive file=$(OBJDIR)/kern/kernel.img,index=0,media=disk,format=raw -serial mon:stdio -gdb tcp::$(GDBPORT)
+CPUS ?= 1
+
+QEMUOPTS = -drive file=$(OBJDIR)/kern/kernel.img,index=0,media=disk,format=raw -serial mon:stdio -gdb tcp:$(GDBSERV)
 QEMUOPTS += $(shell if $(QEMU) -nographic -help | grep -q '^-D '; then echo '-D qemu.log'; fi)
 IMAGES = $(OBJDIR)/kern/kernel.img
-QEMUOPTS += $(QEMUEXTRA)
-
-.gdbinit: .gdbinit.tmpl
-	sed "s/localhost:1234/localhost:$(GDBPORT)/" < $^ > $@
+QEMUOPTS += -smp $(CPUS)
+QEMUOPTS += -drive file=$(OBJDIR)/fs/fs.img,index=1,media=disk,format=raw
+IMAGES += $(OBJDIR)/fs/fs.img
+QEMUOPTS += $(QEMUEXTRA) -d guest_errors
 
 gdb:
-	gdb -n -x .gdbinit
+	gdb -q -s obj/kern/kernel -ex 'target remote $(GDBSERV)' -n -x .gdbinit
 
-pre-qemu: .gdbinit
-
-qemu: $(IMAGES) pre-qemu
+qemu: $(IMAGES)
 	$(QEMU) $(QEMUOPTS)
 
-qemu-nox: $(IMAGES) pre-qemu
+qemu-nox: $(IMAGES)
 	@echo "***"
 	@echo "*** Use Ctrl-a x to exit qemu"
 	@echo "***"
 	$(QEMU) -nographic $(QEMUOPTS)
 
-qemu-gdb: $(IMAGES) pre-qemu
+qemu-gdb: $(IMAGES)
 	@echo "***"
 	@echo "*** Now run 'make gdb'." 1>&2
 	@echo "***"
 	$(QEMU) $(QEMUOPTS) -S
 
-qemu-nox-gdb: $(IMAGES) pre-qemu
+qemu-nox-gdb: $(IMAGES)
 	@echo "***"
 	@echo "*** Now run 'make gdb'." 1>&2
 	@echo "***"
@@ -180,7 +187,7 @@ print-gdbport:
 
 # For deleting the build
 clean:
-	rm -rf $(OBJDIR) .gdbinit jos.in qemu.log
+	rm -rf $(OBJDIR) jos.in qemu.log
 
 realclean: clean
 	rm -rf lab$(LAB).tar.gz \
@@ -200,6 +207,9 @@ grade:
 	@$(MAKE) clean || \
 	  (echo "'make clean' failed.  HINT: Do you have another running instance of JOS?" && exit 1)
 	./grade-lab$(LAB) $(GRADEFLAGS)
+
+format: .clang-files .clang-format
+	xargs -r clang-format -i <$<
 
 git-handin: handin-check
 	@if test -n "`git config remote.handin.url`"; then \
@@ -253,18 +263,10 @@ handin-check:
 
 UPSTREAM := $(shell git remote -v | grep "pdos.csail.mit.edu/6.828/2016/jos.git (fetch)" | awk '{split($$0,a," "); print a[1]}')
 
-tarball: handin-check
-	git archive --format=tar HEAD > lab$(LAB)-handin.tar
-	git diff $(UPSTREAM)/lab$(LAB) > /tmp/lab$(LAB)diff.patch
-	tar -rf lab$(LAB)-handin.tar /tmp/lab$(LAB)diff.patch
-	gzip -c lab$(LAB)-handin.tar > lab$(LAB)-handin.tar.gz
-	rm lab$(LAB)-handin.tar
-	rm /tmp/lab$(LAB)diff.patch
-
 tarball-pref: handin-check
 	@SUF=$(LAB); \
 	if test $(LAB) -eq 3 -o $(LAB) -eq 4; then \
-		read -p "Which part would you like to submit? [a, b, c (lab 4 only)]" p; \
+		read -p "Which part would you like to submit? [a, b, c (c for lab 4 only)]" p; \
 		if test "$$p" != a -a "$$p" != b; then \
 			if test ! $(LAB) -eq 4 -o ! "$$p" = c; then \
 				echo "Bad part \"$$p\""; \
@@ -276,12 +278,12 @@ tarball-pref: handin-check
 	else \
 		rm -f .suf; \
 	fi; \
-	git archive --format=tar HEAD > lab$(LAB)-handin.tar
-	git diff $(UPSTREAM)/lab$(LAB) > /tmp/lab$(LAB)diff.patch
-	tar -rf lab$(LAB)-handin.tar /tmp/lab$(LAB)diff.patch
-	gzip -c lab$(LAB)-handin.tar > lab$(LAB)-handin.tar.gz
-	rm lab$(LAB)-handin.tar
-	rm /tmp/lab$(LAB)diff.patch
+	git archive --format=tar HEAD > lab$$SUF-handin.tar; \
+	git diff $(UPSTREAM)/lab$(LAB) > /tmp/lab$$SUF-diff.patch; \
+	tar -rf lab$$SUF-handin.tar /tmp/lab$$SUF-diff.patch; \
+	gzip -c lab$$SUF-handin.tar > lab$$SUF-handin.tar.gz; \
+	rm lab$$SUF-handin.tar; \
+	rm /tmp/lab$$SUF-diff.patch; \
 
 myapi.key:
 	@echo Get an API key for yourself by visiting $(WEBSUB)/
@@ -304,6 +306,22 @@ myapi.key:
 #handin-prep:
 #	@./handin-prep
 
+# For test runs
+
+prep-%:
+	$(V)$(MAKE) "INIT_CFLAGS=${INIT_CFLAGS} -DTEST=`case $* in *_*) echo $*;; *) echo user_$*;; esac`" $(IMAGES)
+
+run-%-nox-gdb: prep-%
+	$(QEMU) -nographic $(QEMUOPTS) -S
+
+run-%-gdb: prep-%
+	$(QEMU) $(QEMUOPTS) -S
+
+run-%-nox: prep-%
+	$(QEMU) -nographic $(QEMUOPTS)
+
+run-%: prep-%
+	$(QEMU) $(QEMUOPTS)
 
 # This magic automatically generates makefile dependencies
 # for header files included from C source files we compile,
@@ -318,5 +336,6 @@ $(OBJDIR)/.deps: $(foreach dir, $(OBJDIRS), $(wildcard $(OBJDIR)/$(dir)/*.d))
 always:
 	@:
 
+.PHONY: format
 .PHONY: all always \
 	handin git-handin tarball tarball-pref clean realclean distclean grade handin-prep handin-check

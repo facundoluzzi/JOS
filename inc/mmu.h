@@ -46,6 +46,7 @@
 #define NPTENTRIES	1024		// page table entries per page table
 
 #define PGSIZE		4096		// bytes mapped by a page
+#define LPGSIZE		4194304
 #define PGSHIFT		12		// log2(PGSIZE)
 
 #define PTSIZE		(PGSIZE*NPTENTRIES) // bytes mapped by a page directory entry
@@ -165,11 +166,11 @@ struct Segdesc {
 	unsigned sd_base_31_24 : 8; // High bits of segment base address
 };
 // Null segment
-#define SEG_NULL	(struct Segdesc){ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+#define SEG_NULL	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 // Segment that is loadable but faults when used
-#define SEG_FAULT	(struct Segdesc){ 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0 }
+#define SEG_FAULT	{ 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0 }
 // Normal segment
-#define SEG(type, base, lim, dpl) (struct Segdesc)			\
+#define SEG(type, base, lim, dpl) 					\
 { ((lim) >> 12) & 0xffff, (base) & 0xffff, ((base) >> 16) & 0xff,	\
     type, 1, dpl, 1, (unsigned) (lim) >> 28, 0, 0, 1, 1,		\
     (unsigned) (base) >> 24 }
